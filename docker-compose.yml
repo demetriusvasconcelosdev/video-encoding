@@ -1,0 +1,10 @@
+services:
+  encoder:
+    build: .
+    environment:
+      INPUT_DIR: /data/input
+      OUTPUT_DIR: /data/output
+    volumes:
+      - ./input:/data/input:ro
+      - ./output:/data/output
+    restart: "no"
