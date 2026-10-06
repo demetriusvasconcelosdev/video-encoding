@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Job struct {
@@ -15,6 +16,12 @@ type Job struct {
 	Error            string    `valid:"-"`
 	CreatedAt        time.Time `json:"created_at" valid:"-"`
 	UpdatedAt        time.Time `json:"updated_at" valid:"-"`
+}
+
+func (job *Job) prepare() {
+	job.ID = uuid.NewV4().String()
+	job.CreatedAt = time.Now()
+	job.UpdatedAt = time.Now()
 }
 
 func (job *Job) Validate() error {
