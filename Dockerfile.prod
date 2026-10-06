@@ -5,7 +5,7 @@ RUN apk add --update --upgrade build-base
 WORKDIR /go/src
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" framework/cmd/server/server.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/encoder
 
 FROM alpine
 
