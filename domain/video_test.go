@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dl/encoding-video/domain"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,13 +16,16 @@ func TestValidateIfVideoIsEmpty(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestVideoIsValid(t *testing.T) {
+func TestVideoValidation(t *testing.T) {
 	video := domain.NewVideo()
-	video.ID = "7f1d5a52-7f0a-4c3e-9a55-1b2f0c9d6e11"
+
+	video.ID = uuid.NewV4().String()
 	video.ResourceID = "a"
 	video.FilePath = "path"
+	video.CreatedAt = time.Now()
 
-	require.NoError(t, video.Validate())
+	err := video.Validate()
+	require.Nil(t, err)
 }
 
 func TestVideoIdIsNotAUuid(t *testing.T) {
