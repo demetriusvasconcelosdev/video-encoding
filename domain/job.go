@@ -18,6 +18,24 @@ type Job struct {
 	UpdatedAt        time.Time `json:"updated_at" valid:"-"`
 }
 
+func NewJob(output string, status string, video *Video) (*Job, error) {
+	job := Job{
+		OutputBucketPath: output,
+		Status:           status,
+		Video:            video,
+	}
+
+	job.prepare()
+
+	err := job.Validate()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
 func (job *Job) prepare() {
 	job.ID = uuid.NewV4().String()
 	job.CreatedAt = time.Now()
