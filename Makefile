@@ -1,7 +1,7 @@
-.PHONY: build run test
-build:
-	go build -o bin/encoder ./cmd/encoder
-run:
-	go run ./cmd/encoder
+server:
+	go run framework/cmd/server/server.go
+
 test:
-	go test ./...
+	go test -cover ./...
+
+.PHONY: server test
