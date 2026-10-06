@@ -1,5 +1,5 @@
 server:
-	go run framework/cmd/server/server.go
+	go run ./cmd/encoder
 
 test:
 	go test -cover ./...
