@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/asaskevich/govalidator"
+)
 
 type Job struct {
 	ID               string    `json:"job_id" valid:"uuid" gorm:"type:uuid;primary_key"`
@@ -11,4 +15,14 @@ type Job struct {
 	Error            string    `valid:"-"`
 	CreatedAt        time.Time `json:"created_at" valid:"-"`
 	UpdatedAt        time.Time `json:"updated_at" valid:"-"`
+}
+
+func (job *Job) Validate() error {
+	_, err := govalidator.ValidateStruct(job)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
