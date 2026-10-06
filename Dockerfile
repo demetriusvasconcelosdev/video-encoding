@@ -1,18 +1,31 @@
-# syntax=docker/dockerfile:1
-ARG GO_VERSION=1.27
+FROM golang:1.14.6-alpine3.11
+ENV PATH="$PATH:/bin/bash" \
+    BENTO4_BIN="/opt/bento4/bin" \
+    PATH="$PATH:/opt/bento4/bin"
 
-FROM golang:${GO_VERSION}-alpine AS build
-WORKDIR /src
-COPY go.mod go.sum* ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/encoder ./cmd/encoder
+RUN apk add --update ffmpeg bash make
 
-FROM alpine:3.20
-RUN apk add --no-cache ffmpeg ca-certificates \
- && adduser -D -u 1000 app
-USER app
-WORKDIR /app
-COPY --from=build /out/encoder /usr/local/bin/encoder
-ENV INPUT_DIR=/data/input OUTPUT_DIR=/data/output
-ENTRYPOINT ["encoder"]
+WORKDIR /tmp/bento4
+ENV BENTO4_BASE_URL="http://zebulon.bok.net/Bento4/source/" \
+    BENTO4_VERSION="1-5-0-615" \
+    BENTO4_CHECKSUM="5378dbb374343bc274981d6e2ef93bce0851bda1" \
+    BENTO4_TARGET="" \
+    BENTO4_PATH="/opt/bento4" \
+    BENTO4_TYPE="SRC"
+
+RUN apk add --update --upgrade python unzip bash gcc g++ scons && \
+    wget -q ${BENTO4_BASE_URL}/Bento4-${BENTO4_TYPE}-${BENTO4_VERSION}${BENTO4_TARGET}.zip && \
+    sha1sum -b Bento4-${BENTO4_TYPE}-${BENTO4_VERSION}${BENTO4_TARGET}.zip | grep -o "^$BENTO4_CHECKSUM " && \
+    mkdir -p ${BENTO4_PATH} && \
+    unzip Bento4-${BENTO4_TYPE}-${BENTO4_VERSION}${BENTO4_TARGET}.zip -d ${BENTO4_PATH} && \
+    rm -rf Bento4-${BENTO4_TYPE}-${BENTO4_VERSION}${BENTO4_TARGET}.zip && \
+    apk del unzip && \
+
+    cd ${BENTO4_PATH} && scons -u build_config=Release target=x86_64-unknown-linux && \
+    cp -R ${BENTO4_PATH}/Build/Targets/x86_64-unknown-linux/Release ${BENTO4_PATH}/bin && \
+    cp -R ${BENTO4_PATH}/Source/Python/utils ${BENTO4_PATH}/utils && \
+    cp -a ${BENTO4_PATH}/Source/Python/wrappers/. ${BENTO4_PATH}/bin
+
+WORKDIR /go/src
+
+ENTRYPOINT ["tail", "-f", "/dev/null"]
