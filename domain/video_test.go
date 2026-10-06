@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/dl/encoding-video/domain"
 	"github.com/stretchr/testify/require"
@@ -21,4 +22,16 @@ func TestVideoIsValid(t *testing.T) {
 	video.FilePath = "path"
 
 	require.NoError(t, video.Validate())
+}
+
+func TestVideoIdIsNotAUuid(t *testing.T) {
+	video := domain.NewVideo()
+
+	video.ID = "abc"
+	video.ResourceID = "a"
+	video.FilePath = "path"
+	video.CreatedAt = time.Now()
+
+	err := video.Validate()
+	require.Error(t, err)
 }
