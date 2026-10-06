@@ -1,30 +1,33 @@
 package domain
 
 import (
-	"errors"
+	"github.com/asaskevich/govalidator"
 	"time"
 )
 
 type Video struct {
-	ID         string
-	ResourceID string
-	FilePath   string
-	CreatedAt  time.Time
+	ID         string    `json:"encoded_video_folder" valid:"uuid" gorm:"type:uuid;primary_key"`
+	ResourceID string    `json:"resource_id" valid:"notnull" gorm:"type:varchar(255)"`
+	FilePath   string    `json:"file_path" valid:"notnull" gorm:"type:varchar(255)"`
+	CreatedAt  time.Time `json:"-" valid:"-"`
+	Jobs       []*Job    `json:"-" valid:"-" gorm:"ForeignKey:VideoID"`
+}
+
+func init() {
+	govalidator.SetFieldsRequiredByDefault(true)
 }
 
 func NewVideo() *Video {
 	return &Video{}
 }
 
-func (v *Video) Validate() error {
-	if v.ID == "" {
-		return errors.New("id is required")
+func (video *Video) Validate() error {
+
+	_, err := govalidator.ValidateStruct(video)
+
+	if err != nil {
+		return err
 	}
-	if v.ResourceID == "" {
-		return errors.New("resource id is required")
-	}
-	if v.FilePath == "" {
-		return errors.New("file path is required")
-	}
+
 	return nil
 }
