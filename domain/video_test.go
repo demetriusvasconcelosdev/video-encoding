@@ -16,7 +16,7 @@ func TestValidateIfVideoIsEmpty(t *testing.T) {
 
 func TestVideoIsValid(t *testing.T) {
 	video := domain.NewVideo()
-	video.ID = "1"
+	video.ID = "7f1d5a52-7f0a-4c3e-9a55-1b2f0c9d6e11"
 	video.ResourceID = "a"
 	video.FilePath = "path"
 
