@@ -1,6 +1,7 @@
 package services_test
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dl/encoding-video/application/repositories"
 	"github.com/dl/encoding-video/application/services"
 	"github.com/dl/encoding-video/domain"
+	"github.com/dl/encoding-video/framework/database"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -41,15 +44,30 @@ func fakeStorage(t *testing.T, handler http.HandlerFunc) {
 	t.Setenv("STORAGE_EMULATOR_HOST", server.URL)
 }
 
-// fakeMp4fragment puts an executable called mp4fragment first in PATH.
-func fakeMp4fragment(t *testing.T, script string) {
+// fakeCommand puts an executable with the given name first in PATH.
+func fakeCommand(t *testing.T, name string, script string) {
 	t.Helper()
 
 	binDir := t.TempDir()
-	err := os.WriteFile(filepath.Join(binDir, "mp4fragment"), []byte("#!/bin/sh\n"+script), 0o755)
+	err := os.WriteFile(filepath.Join(binDir, name), []byte("#!/bin/sh\n"+script), 0o755)
 	require.Nil(t, err)
 
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func fakeMp4fragment(t *testing.T, script string) {
+	t.Helper()
+	fakeCommand(t, "mp4fragment", script)
+}
+
+type failingVideoRepository struct{}
+
+func (failingVideoRepository) Insert(video *domain.Video) (*domain.Video, error) {
+	return nil, errors.New("insert failed")
+}
+
+func (failingVideoRepository) Find(id string) (*domain.Video, error) {
+	return nil, errors.New("find failed")
 }
 
 func TestVideoServiceDownload(t *testing.T) {
@@ -138,4 +156,55 @@ func TestVideoServiceFragmentDirectoryAlreadyExists(t *testing.T) {
 	err = service.Fragment()
 	require.NotNil(t, err)
 	require.True(t, os.IsExist(err))
+}
+
+func TestVideoServiceEncode(t *testing.T) {
+	service, storagePath := newTestVideoService(t)
+
+	argsFile := filepath.Join(t.TempDir(), "args")
+	fakeCommand(t, "mp4dash", `echo "$@" > "`+argsFile+`"`)
+
+	err := service.Encode()
+	require.Nil(t, err)
+
+	source := storagePath + "/" + service.Video.ID + ".frag"
+	output := storagePath + "/" + service.Video.ID
+
+	args, err := os.ReadFile(argsFile)
+	require.Nil(t, err)
+	require.Equal(t, source+" --use-segment-timeline -o "+output+" -f --exec-dir /opt/bento4/bin/\n", string(args))
+}
+
+func TestVideoServiceEncodeCommandFails(t *testing.T) {
+	service, _ := newTestVideoService(t)
+
+	fakeCommand(t, "mp4dash", "echo 'cannot open input' >&2\nexit 1")
+
+	err := service.Encode()
+	require.NotNil(t, err)
+}
+
+func TestVideoServiceInsertVideo(t *testing.T) {
+	db := database.NewDbTest()
+	defer db.Close()
+
+	service, _ := newTestVideoService(t)
+	service.VideoRepository = repositories.NewVideoRepository(db)
+
+	err := service.InsertVideo()
+	require.Nil(t, err)
+
+	v, err := service.VideoRepository.Find(service.Video.ID)
+	require.Nil(t, err)
+	require.Equal(t, service.Video.ID, v.ID)
+	require.Equal(t, service.Video.ResourceID, v.ResourceID)
+	require.Equal(t, service.Video.FilePath, v.FilePath)
+}
+
+func TestVideoServiceInsertVideoRepositoryFails(t *testing.T) {
+	service, _ := newTestVideoService(t)
+	service.VideoRepository = failingVideoRepository{}
+
+	err := service.InsertVideo()
+	require.EqualError(t, err, "insert failed")
 }
