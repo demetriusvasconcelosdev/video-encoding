@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -48,4 +49,46 @@ func (vu *VideoUpload) UploadObject(objectPath string, client *storage.Client, c
 
 	return nil
 
+}
+
+func (vu *VideoUpload) ProcessUpload(concurrency int, doneUpload chan string) error {
+
+	in := make(chan int, runtime.NumCPU()) // qual o arquivo baseado na posicao do slice Paths
+	returnChannel := make(chan string)
+
+	err := vu.loadPaths()
+	if err != nil {
+		return err
+	}
+
+	uploadClient, ctx, err := getClientUpload()
+	if err != nil {
+		return err
+	}
+
+	for process := 0; process < concurrency; process++ {
+		go vu.uploadWorker(in, returnChannel, uploadClient, ctx)
+	}
+
+	go func() {
+		for x := 0; x < len(vu.Paths); x++ {
+			in <- x
+		}
+	}()
+
+	countDoneWorker := 0
+	for r := range returnChannel {
+		countDoneWorker++
+
+		if r != "" {
+			doneUpload <- r
+			break
+		}
+
+		if countDoneWorker == len(vu.Paths) {
+			close(in)
+		}
+	}
+
+	return nil
 }
