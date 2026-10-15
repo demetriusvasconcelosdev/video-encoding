@@ -78,3 +78,25 @@ func printOutput(out []byte) {
 		log.Printf("=====> Output: %s\n", string(out))
 	}
 }
+
+func (v *VideoService) Encode() error {
+	cmdArgs := []string{}
+	cmdArgs = append(cmdArgs, os.Getenv("localStoragePath")+"/"+v.Video.ID+".frag")
+	cmdArgs = append(cmdArgs, "--use-segment-timeline")
+	cmdArgs = append(cmdArgs, "-o")
+	cmdArgs = append(cmdArgs, os.Getenv("localStoragePath")+"/"+v.Video.ID)
+	cmdArgs = append(cmdArgs, "-f")
+	cmdArgs = append(cmdArgs, "--exec-dir")
+	cmdArgs = append(cmdArgs, "/opt/bento4/bin/")
+	cmd := exec.Command("mp4dash", cmdArgs...)
+
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return err
+	}
+
+	printOutput(output)
+
+	return nil
+}
