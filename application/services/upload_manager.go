@@ -6,3 +6,7 @@ type VideoUpload struct {
 	OutputBucket string
 	Errors       []string
 }
+
+func NewVideoUpload() *VideoUpload {
+	return &VideoUpload{}
+}
