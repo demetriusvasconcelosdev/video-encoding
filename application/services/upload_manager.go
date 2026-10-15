@@ -110,3 +110,13 @@ func (vu *VideoUpload) uploadWorker(in chan int, returnChan chan string, uploadC
 
 	returnChan <- "upload completed"
 }
+
+func getClientUpload() (*storage.Client, context.Context, error) {
+	ctx := context.Background()
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, ctx, nil
+}
