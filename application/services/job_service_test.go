@@ -83,3 +83,13 @@ func TestJobServiceStartDownloadFailure(t *testing.T) {
 	require.Equal(t, "FAILED", jobService.Job.Status)
 	require.NotEmpty(t, jobService.Job.Error)
 }
+
+func TestJobServiceStartRepositoryFailure(t *testing.T) {
+	repo := &memoryJobRepository{failWith: errors.New("update failed")}
+	jobService := newTestJobService(t, repo)
+
+	err := jobService.Start()
+
+	require.EqualError(t, err, "update failed")
+	require.Empty(t, repo.statuses)
+}
