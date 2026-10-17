@@ -15,6 +15,71 @@ type JobService struct {
 	VideoService  VideoService
 }
 
+func (j *JobService) Start() error {
+
+	err := j.changeJobStatus("DOWNLOADING")
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.VideoService.Download(os.Getenv("inputBucketName"))
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.changeJobStatus("FRAGMENTING")
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.VideoService.Fragment()
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.changeJobStatus("ENCODING")
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.VideoService.Encode()
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.performUpload()
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.changeJobStatus("FINISHING")
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.VideoService.Finish()
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	err = j.changeJobStatus("COMPLETED")
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	return nil
+}
+
 func (j *JobService) performUpload() error {
 
 	err := j.changeJobStatus("UPLOADING")
