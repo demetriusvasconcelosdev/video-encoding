@@ -141,3 +141,12 @@ func TestVideoUploadProcessUpload(t *testing.T) {
 	require.Len(t, upload.Paths, 3)
 	require.Empty(t, upload.Errors)
 }
+
+func TestVideoUploadProcessUploadInvalidVideoPath(t *testing.T) {
+	upload := services.NewVideoUpload()
+	upload.VideoPath = filepath.Join(t.TempDir(), "does-not-exist")
+
+	err := upload.ProcessUpload(1, make(chan string))
+
+	require.NotNil(t, err)
+}
