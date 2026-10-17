@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strconv"
 
+	"github.com/dl/encoding-video/application/repositories"
 	"github.com/dl/encoding-video/domain"
 	"github.com/dl/encoding-video/framework/queue"
 	"github.com/jinzhu/gorm"
@@ -48,6 +50,39 @@ func (j *JobManager) notify(jobJson []byte) error {
 	}
 
 	return nil
+}
+
+func (j *JobManager) Start(ch *amqp.Channel) {
+
+	videoService := NewVideoService()
+	videoService.VideoRepository = repositories.VideoRepositoryDb{Db: j.Db}
+
+	jobService := JobService{
+		JobRepository: repositories.JobRepositoryDb{Db: j.Db},
+		VideoService:  videoService,
+	}
+
+	concurrency, err := strconv.Atoi(os.Getenv("CONCURRENCY_WORKERS"))
+
+	if err != nil {
+		log.Fatalf("error loading var: CONCURRENCY_WORKERS.")
+	}
+
+	for qtdProcesses := 0; qtdProcesses < concurrency; qtdProcesses++ {
+		go JobWorker(j.MessageChannel, j.JobReturnChannel, jobService, j.Domain, qtdProcesses)
+	}
+
+	for jobResult := range j.JobReturnChannel {
+		if jobResult.Error != nil {
+			err = j.checkParseErrors(jobResult)
+		} else {
+			err = j.notifySuccess(jobResult, ch)
+		}
+
+		if err != nil {
+			jobResult.Message.Reject(false)
+		}
+	}
 }
 
 func (j *JobManager) notifySuccess(jobResult JobWorkerResult, ch *amqp.Channel) error {
