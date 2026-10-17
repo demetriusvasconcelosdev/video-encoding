@@ -208,3 +208,19 @@ func TestVideoServiceInsertVideoRepositoryFails(t *testing.T) {
 	err := service.InsertVideo()
 	require.EqualError(t, err, "insert failed")
 }
+
+func TestVideoServiceFinish(t *testing.T) {
+	service, storagePath := newTestVideoService(t)
+
+	id := service.Video.ID
+	require.Nil(t, os.WriteFile(filepath.Join(storagePath, id+".mp4"), []byte("mp4"), 0o644))
+	require.Nil(t, os.WriteFile(filepath.Join(storagePath, id+".frag"), []byte("frag"), 0o644))
+	require.Nil(t, os.MkdirAll(filepath.Join(storagePath, id, "nested"), 0o755))
+
+	err := service.Finish()
+
+	require.Nil(t, err)
+	entries, err := os.ReadDir(storagePath)
+	require.Nil(t, err)
+	require.Empty(t, entries)
+}
