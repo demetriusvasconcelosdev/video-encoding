@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"cloud.google.com/go/storage"
 )
@@ -17,6 +18,7 @@ type VideoUpload struct {
 	VideoPath    string
 	OutputBucket string
 	Errors       []string
+	errorsMu     sync.Mutex
 }
 
 func NewVideoUpload() *VideoUpload {
@@ -101,7 +103,9 @@ func (vu *VideoUpload) uploadWorker(in chan int, returnChan chan string, uploadC
 		err := vu.UploadObject(vu.Paths[x], uploadClient, ctx)
 
 		if err != nil {
+			vu.errorsMu.Lock()
 			vu.Errors = append(vu.Errors, vu.Paths[x])
+			vu.errorsMu.Unlock()
 			log.Printf("error during the upload: %v. Error: %v", vu.Paths[x], err)
 			returnChan <- err.Error()
 		}
