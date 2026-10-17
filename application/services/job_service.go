@@ -1,6 +1,10 @@
 package services
 
 import (
+	"errors"
+	"os"
+	"strconv"
+
 	"github.com/dl/encoding-video/application/repositories"
 	"github.com/dl/encoding-video/domain"
 )
@@ -9,6 +13,35 @@ type JobService struct {
 	Job           *domain.Job
 	JobRepository repositories.JobRepository
 	VideoService  VideoService
+}
+
+func (j *JobService) performUpload() error {
+
+	err := j.changeJobStatus("UPLOADING")
+
+	if err != nil {
+		return j.failJob(err)
+	}
+
+	videoUpload := NewVideoUpload()
+	videoUpload.OutputBucket = os.Getenv("outputBucketName")
+	videoUpload.VideoPath = os.Getenv("localStoragePath") + "/" + j.VideoService.Video.ID
+	concurrency, _ := strconv.Atoi(os.Getenv("CONCURRENCY_UPLOAD"))
+	doneUpload := make(chan string)
+
+	go func() {
+		if err := videoUpload.ProcessUpload(concurrency, doneUpload); err != nil {
+			doneUpload <- err.Error()
+		}
+	}()
+
+	uploadResult := <-doneUpload
+
+	if uploadResult != "upload completed" {
+		return j.failJob(errors.New(uploadResult))
+	}
+
+	return nil
 }
 
 func (j *JobService) changeJobStatus(status string) error {
