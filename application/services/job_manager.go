@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 
 	"github.com/dl/encoding-video/domain"
@@ -66,6 +67,39 @@ func (j *JobManager) notifySuccess(jobResult JobWorkerResult, ch *amqp.Channel) 
 	}
 
 	err = jobResult.Message.Ack(false)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (j *JobManager) checkParseErrors(jobResult JobWorkerResult) error {
+	if jobResult.Job.ID != "" {
+		log.Printf("MessageID: %v. Error during the job: %v with video: %v. Error: %v",
+			jobResult.Message.DeliveryTag, jobResult.Job.ID, jobResult.Job.Video.ID, jobResult.Error.Error())
+	} else {
+		log.Printf("MessageID: %v. Error parsing message: %v", jobResult.Message.DeliveryTag, jobResult.Error)
+	}
+
+	errorMsg := JobNotificationError{
+		Message: string(jobResult.Message.Body),
+		Error:   jobResult.Error.Error(),
+	}
+
+	jobJson, err := json.Marshal(errorMsg)
+	if err != nil {
+		return err
+	}
+
+	err = j.notify(jobJson)
+
+	if err != nil {
+		return err
+	}
+
+	err = jobResult.Message.Reject(false)
 
 	if err != nil {
 		return err
