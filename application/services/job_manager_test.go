@@ -2,14 +2,16 @@ package services_test
 
 import (
 	"encoding/json"
+	"net/http"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/dl/encoding-video/application/services"
+	"github.com/dl/encoding-video/domain"
 	"github.com/dl/encoding-video/framework/database"
-	"github.com/stretchr/testify/require"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/require"
 )
 
 type notification struct {
@@ -104,4 +106,43 @@ func TestJobManagerNotifiesParseError(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for notification")
 	}
+}
+
+func TestJobManagerNotifiesSuccessAndAcks(t *testing.T) {
+	storagePath := t.TempDir()
+	t.Setenv("localStoragePath", storagePath)
+	t.Setenv("inputBucketName", "input-bucket")
+	t.Setenv("outputBucketName", "output-bucket")
+	t.Setenv("CONCURRENCY_UPLOAD", "2")
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{}`))
+	})
+	fakeMp4fragment(t, `touch "$2"`)
+	fakeCommand(t, "mp4dash", `mkdir -p "$4" && echo segment > "$4/segment.m4s"`)
+
+	notifier := newFakeNotifier()
+	messages, stop := startJobManager(t, notifier)
+	defer stop()
+
+	acker := &fakeAcknowledger{}
+	messages <- amqp.Delivery{Acknowledger: acker, Body: []byte(`{"resource_id": "resource-id", "file_path": "sample.mp4"}`)}
+
+	select {
+	case n := <-notifier.notifications:
+		var job domain.Job
+		require.Nil(t, json.Unmarshal([]byte(n.message), &job))
+		require.Equal(t, "COMPLETED", job.Status)
+		require.Equal(t, "output-bucket", job.OutputBucketPath)
+		require.Equal(t, "resource-id", job.Video.ResourceID)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for notification")
+	}
+
+	require.Eventually(t, func() bool {
+		acker.mu.Lock()
+		defer acker.mu.Unlock()
+		return acker.acks == 1 && acker.rejected == 0
+	}, 5*time.Second, 10*time.Millisecond)
 }
