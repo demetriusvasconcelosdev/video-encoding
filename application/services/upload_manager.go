@@ -58,12 +58,14 @@ func (vu *VideoUpload) UploadObject(objectPath string, client *storage.Client, c
 func (vu *VideoUpload) ProcessUpload(concurrency int, doneUpload chan string) error {
 
 	in := make(chan int, runtime.NumCPU()) // qual o arquivo baseado na posicao do slice Paths
-	returnChannel := make(chan string)
 
 	err := vu.loadPaths()
 	if err != nil {
 		return err
 	}
+
+	// one result per file plus the final message of each worker, so workers never block on send
+	returnChannel := make(chan string, len(vu.Paths)+concurrency)
 
 	uploadClient, ctx, err := getClientUpload()
 	if err != nil {
