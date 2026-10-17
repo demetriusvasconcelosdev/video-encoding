@@ -3,3 +3,6 @@ input/*
 output/*
 !input/.gitkeep
 !output/.gitkeep
+.idea
+.pgdata
+.devcontainer
