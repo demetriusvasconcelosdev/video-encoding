@@ -180,3 +180,28 @@ func TestVideoUploadProcessUploadConcurrent(t *testing.T) {
 	require.Len(t, upload.Paths, 5)
 	require.Empty(t, upload.Errors)
 }
+
+func TestVideoUploadProcessUploadStorageFailure(t *testing.T) {
+	storagePath := t.TempDir()
+	t.Setenv("localStoragePath", storagePath)
+	writeFiles(t, storagePath, "video/a.ts", "video/b.ts", "video/c.ts", "video/d.ts")
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	})
+
+	upload := services.NewVideoUpload()
+	upload.VideoPath = filepath.Join(storagePath, "video")
+	upload.OutputBucket = "test-bucket"
+
+	done := make(chan string)
+	go upload.ProcessUpload(3, done)
+
+	select {
+	case msg := <-done:
+		require.NotEqual(t, "upload completed", msg)
+		require.NotEmpty(t, msg)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for upload to finish")
+	}
+}
