@@ -84,6 +84,25 @@ func (r *RabbitMQ) Consume(messageChannel chan amqp.Delivery) {
 	}()
 }
 
+func (r *RabbitMQ) Notify(message string, contentType string, exchange string, routingKey string) error {
+
+	err := r.Channel.Publish(
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType: contentType,
+			Body:        []byte(message),
+		})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
