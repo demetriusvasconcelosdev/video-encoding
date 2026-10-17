@@ -108,6 +108,7 @@ func (vu *VideoUpload) uploadWorker(in chan int, returnChan chan string, uploadC
 			vu.errorsMu.Unlock()
 			log.Printf("error during the upload: %v. Error: %v", vu.Paths[x], err)
 			returnChan <- err.Error()
+			continue
 		}
 
 		returnChan <- ""
