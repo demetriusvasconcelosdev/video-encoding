@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"log"
 	"os"
 
 	"github.com/streadway/amqp"
@@ -37,4 +38,21 @@ func NewRabbitMQ() *RabbitMQ {
 	}
 
 	return &rabbitMQ
+}
+
+func (r *RabbitMQ) Connect() *amqp.Channel {
+	dsn := "amqp://" + r.User + ":" + r.Password + "@" + r.Host + ":" + r.Port + r.Vhost
+	conn, err := amqp.Dial(dsn)
+	failOnError(err, "Failed to connect to RabbitMQ")
+
+	r.Channel, err = conn.Channel()
+	failOnError(err, "Failed to open a channel")
+
+	return r.Channel
+}
+
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
+	}
 }
