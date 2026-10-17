@@ -150,3 +150,33 @@ func TestVideoUploadProcessUploadInvalidVideoPath(t *testing.T) {
 
 	require.NotNil(t, err)
 }
+
+func TestVideoUploadProcessUploadConcurrent(t *testing.T) {
+	storagePath := t.TempDir()
+	t.Setenv("localStoragePath", storagePath)
+	writeFiles(t, storagePath, "video/a.ts", "video/b.ts", "video/c.ts", "video/d.ts", "video/e.ts")
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{}`))
+	})
+
+	upload := services.NewVideoUpload()
+	upload.VideoPath = filepath.Join(storagePath, "video")
+	upload.OutputBucket = "test-bucket"
+
+	done := make(chan string)
+	errCh := make(chan error, 1)
+	go func() { errCh <- upload.ProcessUpload(3, done) }()
+
+	select {
+	case msg := <-done:
+		require.Equal(t, "upload completed", msg)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for upload to finish")
+	}
+
+	require.Nil(t, <-errCh)
+	require.Len(t, upload.Paths, 5)
+	require.Empty(t, upload.Errors)
+}
