@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"os"
 
 	"github.com/dl/encoding-video/domain"
@@ -40,6 +41,31 @@ func (j *JobManager) notify(jobJson []byte) error {
 		os.Getenv("RABBITMQ_NOTIFICATION_EX"),
 		os.Getenv("RABBITMQ_NOTIFICATION_ROUTING_KEY"),
 	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (j *JobManager) notifySuccess(jobResult JobWorkerResult, ch *amqp.Channel) error {
+
+	Mutex.Lock()
+	jobJson, err := json.Marshal(jobResult.Job)
+	Mutex.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	err = j.notify(jobJson)
+
+	if err != nil {
+		return err
+	}
+
+	err = jobResult.Message.Ack(false)
 
 	if err != nil {
 		return err
