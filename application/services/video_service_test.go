@@ -224,3 +224,11 @@ func TestVideoServiceFinish(t *testing.T) {
 	require.Nil(t, err)
 	require.Empty(t, entries)
 }
+
+func TestVideoServiceFinishMissingFiles(t *testing.T) {
+	service, _ := newTestVideoService(t)
+
+	err := service.Finish()
+
+	require.NotNil(t, err)
+}
