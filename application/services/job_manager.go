@@ -13,12 +13,16 @@ import (
 	"github.com/streadway/amqp"
 )
 
+type Notifier interface {
+	Notify(message string, contentType string, exchange string, routingKey string) error
+}
+
 type JobManager struct {
 	Db               *gorm.DB
 	Domain           domain.Job
 	MessageChannel   chan amqp.Delivery
 	JobReturnChannel chan JobWorkerResult
-	RabbitMQ         *queue.RabbitMQ
+	RabbitMQ         Notifier
 }
 
 type JobNotificationError struct {
