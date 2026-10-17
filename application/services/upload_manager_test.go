@@ -88,3 +88,25 @@ func TestVideoUploadUploadObjectFileNotFound(t *testing.T) {
 	require.NotNil(t, err)
 	require.True(t, os.IsNotExist(err))
 }
+
+func TestVideoUploadUploadObjectStorageError(t *testing.T) {
+	storagePath := t.TempDir()
+	t.Setenv("localStoragePath", storagePath)
+	writeFiles(t, storagePath, "segment.ts")
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	})
+
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	require.Nil(t, err)
+	defer client.Close()
+
+	upload := services.NewVideoUpload()
+	upload.OutputBucket = "test-bucket"
+
+	err = upload.UploadObject(filepath.Join(storagePath, "segment.ts"), client, ctx)
+
+	require.NotNil(t, err)
+}
