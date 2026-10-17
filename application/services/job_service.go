@@ -110,14 +110,14 @@ func (j *JobService) performUpload() error {
 }
 
 func (j *JobService) changeJobStatus(status string) error {
-	var err error
-
 	j.Job.Status = status
-	j.Job, err = j.JobRepository.Update(j.Job)
+	job, err := j.JobRepository.Update(j.Job)
 
 	if err != nil {
 		return j.failJob(err)
 	}
+
+	j.Job = job
 
 	return nil
 }
