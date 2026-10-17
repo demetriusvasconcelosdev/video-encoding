@@ -57,3 +57,13 @@ func TestJobWorkerInvalidVideo(t *testing.T) {
 	require.Error(t, result.Error)
 	require.Empty(t, result.Job.ID)
 }
+
+func TestJobWorkerInsertVideoFailure(t *testing.T) {
+	jobService := services.JobService{}
+	jobService.VideoService.VideoRepository = failingVideoRepository{}
+
+	result := runJobWorker(t, jobService, `{"resource_id": "resource-id", "file_path": "sample.mp4"}`)
+
+	require.EqualError(t, result.Error, "insert failed")
+	require.Empty(t, result.Job.ID)
+}
