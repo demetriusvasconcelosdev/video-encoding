@@ -66,3 +66,25 @@ func TestVideoUploadUploadObject(t *testing.T) {
 		require.Contains(t, path, "test-bucket")
 	}
 }
+
+func TestVideoUploadUploadObjectFileNotFound(t *testing.T) {
+	storagePath := t.TempDir()
+	t.Setenv("localStoragePath", storagePath)
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{}`))
+	})
+
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	require.Nil(t, err)
+	defer client.Close()
+
+	upload := services.NewVideoUpload()
+	upload.OutputBucket = "test-bucket"
+
+	err = upload.UploadObject(filepath.Join(storagePath, "missing.ts"), client, ctx)
+
+	require.NotNil(t, err)
+	require.True(t, os.IsNotExist(err))
+}
