@@ -51,6 +51,39 @@ func (r *RabbitMQ) Connect() *amqp.Channel {
 	return r.Channel
 }
 
+func (r *RabbitMQ) Consume(messageChannel chan amqp.Delivery) {
+
+	q, err := r.Channel.QueueDeclare(
+		r.ConsumerQueueName, // name
+		true,                // durable
+		false,               // delete when unused
+		false,               // exclusive
+		false,               // no-wait
+		r.Args,              // arguments
+	)
+	failOnError(err, "failed to declare a queue")
+
+	incomingMessage, err := r.Channel.Consume(
+		q.Name,         // queue
+		r.ConsumerName, // consumer
+		r.AutoAck,      // auto-ack
+		false,          // exclusive
+		false,          // no-local
+		false,          // no-wait
+		nil,            // args
+	)
+	failOnError(err, "Failed to register a consumer")
+
+	go func() {
+		for message := range incomingMessage {
+			log.Println("Incoming new message")
+			messageChannel <- message
+		}
+		log.Println("RabbitMQ channel closed")
+		close(messageChannel)
+	}()
+}
+
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
