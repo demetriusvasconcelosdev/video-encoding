@@ -50,3 +50,10 @@ func TestJobWorkerInvalidJson(t *testing.T) {
 	require.Empty(t, result.Job.ID)
 	require.Equal(t, "not a json", string(result.Message.Body))
 }
+
+func TestJobWorkerInvalidVideo(t *testing.T) {
+	result := runJobWorker(t, services.JobService{}, `{"resource_id": "", "file_path": ""}`)
+
+	require.Error(t, result.Error)
+	require.Empty(t, result.Job.ID)
+}
