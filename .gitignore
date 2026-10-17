@@ -6,3 +6,5 @@ output/*
 .idea
 .pgdata
 .devcontainer
+.env
+bucket-credential.json
