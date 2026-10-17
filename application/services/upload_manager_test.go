@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/dl/encoding-video/application/services"
@@ -109,4 +110,34 @@ func TestVideoUploadUploadObjectStorageError(t *testing.T) {
 	err = upload.UploadObject(filepath.Join(storagePath, "segment.ts"), client, ctx)
 
 	require.NotNil(t, err)
+}
+
+func TestVideoUploadProcessUpload(t *testing.T) {
+	storagePath := t.TempDir()
+	t.Setenv("localStoragePath", storagePath)
+	writeFiles(t, storagePath, "video/a.ts", "video/b.ts", "video/nested/c.ts")
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{}`))
+	})
+
+	upload := services.NewVideoUpload()
+	upload.VideoPath = filepath.Join(storagePath, "video")
+	upload.OutputBucket = "test-bucket"
+
+	done := make(chan string)
+	errCh := make(chan error, 1)
+	go func() { errCh <- upload.ProcessUpload(1, done) }()
+
+	select {
+	case msg := <-done:
+		require.Equal(t, "upload completed", msg)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for upload to finish")
+	}
+
+	require.Nil(t, <-errCh)
+	require.Len(t, upload.Paths, 3)
+	require.Empty(t, upload.Errors)
 }
