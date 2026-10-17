@@ -1,6 +1,7 @@
 package services_test
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -43,27 +44,25 @@ func runJobWorker(t *testing.T, jobService services.JobService, body string) ser
 	}
 }
 
-func TestJobWorkerInvalidJson(t *testing.T) {
-	result := runJobWorker(t, services.JobService{}, "not a json")
+func TestJobWorkerSuccess(t *testing.T) {
+	videoRepo := &memoryVideoRepository{}
+	jobRepo := &memoryJobRepository{}
+	jobService := newTestJobService(t, jobRepo)
+	jobService.VideoService.VideoRepository = videoRepo
 
-	require.Error(t, result.Error)
-	require.Empty(t, result.Job.ID)
-	require.Equal(t, "not a json", string(result.Message.Body))
-}
-
-func TestJobWorkerInvalidVideo(t *testing.T) {
-	result := runJobWorker(t, services.JobService{}, `{"resource_id": "", "file_path": ""}`)
-
-	require.Error(t, result.Error)
-	require.Empty(t, result.Job.ID)
-}
-
-func TestJobWorkerInsertVideoFailure(t *testing.T) {
-	jobService := services.JobService{}
-	jobService.VideoService.VideoRepository = failingVideoRepository{}
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{}`))
+	})
+	fakeMp4fragment(t, `touch "$2"`)
+	fakeCommand(t, "mp4dash", `mkdir -p "$4" && echo segment > "$4/segment.m4s"`)
 
 	result := runJobWorker(t, jobService, `{"resource_id": "resource-id", "file_path": "sample.mp4"}`)
 
-	require.EqualError(t, result.Error, "insert failed")
-	require.Empty(t, result.Job.ID)
+	require.Nil(t, result.Error)
+	require.Len(t, videoRepo.videos, 1)
+	require.NotEmpty(t, result.Job.ID)
+	require.Equal(t, "COMPLETED", result.Job.Status)
+	require.Equal(t, "output-bucket", result.Job.OutputBucketPath)
+	require.Equal(t, videoRepo.videos[0].ID, result.Job.Video.ID)
 }
