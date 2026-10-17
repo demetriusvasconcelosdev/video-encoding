@@ -7,8 +7,8 @@ import (
 
 	"github.com/dl/encoding-video/application/services"
 	"github.com/dl/encoding-video/domain"
-	"github.com/stretchr/testify/require"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/require"
 )
 
 type memoryVideoRepository struct {
