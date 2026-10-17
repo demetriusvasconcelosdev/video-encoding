@@ -67,3 +67,19 @@ func TestJobServiceStart(t *testing.T) {
 		"DOWNLOADING", "FRAGMENTING", "ENCODING", "UPLOADING", "FINISHING", "COMPLETED",
 	}, repo.statuses)
 }
+
+func TestJobServiceStartDownloadFailure(t *testing.T) {
+	repo := &memoryJobRepository{}
+	jobService := newTestJobService(t, repo)
+
+	fakeStorage(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+
+	err := jobService.Start()
+
+	require.NotNil(t, err)
+	require.Equal(t, []string{"DOWNLOADING", "FAILED"}, repo.statuses)
+	require.Equal(t, "FAILED", jobService.Job.Status)
+	require.NotEmpty(t, jobService.Job.Error)
+}
