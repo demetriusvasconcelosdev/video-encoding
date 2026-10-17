@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -119,4 +120,20 @@ func getClientUpload() (*storage.Client, context.Context, error) {
 		return nil, nil, err
 	}
 	return client, ctx, nil
+}
+
+func (vu *VideoUpload) loadPaths() error {
+
+	err := filepath.Walk(vu.VideoPath, func(path string, info os.FileInfo, err error) error {
+
+		if !info.IsDir() {
+			vu.Paths = append(vu.Paths, path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
