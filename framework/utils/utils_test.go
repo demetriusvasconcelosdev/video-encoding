@@ -18,3 +18,9 @@ func TestIsJsonValid(t *testing.T) {
 
 	require.Nil(t, err)
 }
+
+func TestIsJsonInvalid(t *testing.T) {
+	err := utils.IsJson(`not a json`)
+
+	require.Error(t, err)
+}
